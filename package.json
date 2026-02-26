@@ -1,0 +1,21 @@
+{
+  "name": "flow",
+  "version": "1.0.0",
+  "description": "FLOW auction CLI bot (monitor + manual bid submission)",
+  "main": "src/bot.js",
+  "scripts": {
+    "bot": "node src/bot.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "viem": "^2.46.3"
+  }
+}
