@@ -14,6 +14,13 @@ cp .env.example .env
 Заполни `.env`:
 - `BANKR_API_KEY`
 - `BASE_RPC_URL`
+- `BASE_RPC_FALLBACK_URLS` (рекомендуется, через запятую)
+
+Пример fallback:
+
+```env
+BASE_RPC_FALLBACK_URLS=https://base-rpc.publicnode.com,https://base.llamarpc.com
+```
 
 ## Запуск
 

@@ -30,9 +30,30 @@ function parsePositiveFloat(value, fallback) {
   return parsed;
 }
 
+function parseUrlsCsv(value) {
+  if (!value || !value.trim()) return [];
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function validateUrl(url) {
+  try {
+    // eslint-disable-next-line no-new
+    new URL(url);
+  } catch {
+    throw new Error(`Некорректный URL RPC: ${url}`);
+  }
+}
+
 export function loadConfig() {
   const bankrApiKey = requiredEnv("BANKR_API_KEY");
   const baseRpcUrl = requiredEnv("BASE_RPC_URL");
+  const fallbackUrls = parseUrlsCsv(process.env.BASE_RPC_FALLBACK_URLS);
+  const rpcUrls = [...new Set([baseRpcUrl, ...fallbackUrls])];
+  rpcUrls.forEach(validateUrl);
+
   const flowAuctionAddress =
     process.env.FLOW_AUCTION_ADDRESS?.trim() || DEFAULT_FLOW_AUCTION_ADDRESS;
 
@@ -44,9 +65,11 @@ export function loadConfig() {
 
   return {
     bankrApiKey,
-    baseRpcUrl,
+    rpcUrls,
     flowAuctionAddress: getAddress(flowAuctionAddress),
     pollMs: parsePositiveInt(process.env.POLL_MS, 1000),
     minNativeEth: parsePositiveFloat(process.env.MIN_NATIVE_ETH, 0.0001),
+    monitorLogRetries: parsePositiveInt(process.env.MONITOR_LOG_RETRIES, 3),
+    monitorRetryBaseMs: parsePositiveInt(process.env.MONITOR_RETRY_BASE_MS, 300),
   };
 }

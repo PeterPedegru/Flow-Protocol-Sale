@@ -5,6 +5,7 @@ import readline from "node:readline";
 import {
   createPublicClient,
   decodeEventLog,
+  fallback,
   formatUnits,
   getAddress,
   http,
@@ -31,6 +32,22 @@ import { BidMonitor } from "./monitor.js";
 
 function toIsoNow() {
   return new Date().toISOString();
+}
+
+function summarizeMonitorError(error) {
+  const msg = String(error?.message ?? error);
+  if (
+    /Status:\s*503/i.test(msg) ||
+    /no backend is currently healthy/i.test(msg)
+  ) {
+    return "RPC ответил 503 (временная деградация). Монитор продолжает ретраи.";
+  }
+  if (/Status:\s*429/i.test(msg)) {
+    return "RPC rate limit (429). Монитор продолжает ретраи.";
+  }
+
+  const firstLine = msg.split("\n")[0]?.trim();
+  return firstLine || "неизвестная ошибка мониторинга";
 }
 
 function parsePositiveNumber(value, fieldName) {
@@ -100,9 +117,29 @@ async function main() {
   const config = loadConfig();
   const bankr = new BankrClient(config.bankrApiKey);
   const flow = new FlowClient();
+
+  const transport = config.rpcUrls.length === 1
+    ? http(config.rpcUrls[0], {
+      retryCount: 3,
+      retryDelay: 300,
+      timeout: 10_000,
+    })
+    : fallback(
+      config.rpcUrls.map((url) =>
+        http(url, {
+          retryCount: 2,
+          retryDelay: 250,
+          timeout: 10_000,
+        }),
+      ),
+      {
+        rank: false,
+      },
+    );
+
   const publicClient = createPublicClient({
     chain: base,
-    transport: http(config.baseRpcUrl),
+    transport,
   });
 
   console.log(`${toIsoNow()} Инициализация...`);
@@ -146,6 +183,8 @@ async function main() {
     startBlock,
     endBlock,
     pollMs: config.pollMs,
+    logRetries: config.monitorLogRetries,
+    retryBaseMs: config.monitorRetryBaseMs,
   });
 
   monitor.on("bid", (event) => {
@@ -154,8 +193,24 @@ async function main() {
     );
   });
 
+  const lastMonitorError = {
+    text: "",
+    at: 0,
+  };
+
+  monitor.on("warn", (warning) => {
+    console.warn(`${toIsoNow()} [monitor:warn] ${warning.message}`);
+  });
+
   monitor.on("error", (error) => {
-    console.error(`${toIsoNow()} [monitor:error] ${error.message}`);
+    const text = summarizeMonitorError(error);
+    const now = Date.now();
+    if (lastMonitorError.text === text && now - lastMonitorError.at < 15_000) {
+      return;
+    }
+    lastMonitorError.text = text;
+    lastMonitorError.at = now;
+    console.error(`${toIsoNow()} [monitor:error] ${text}`);
   });
 
   await monitor.start();
