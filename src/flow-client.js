@@ -42,14 +42,14 @@ export class FlowClient {
   }
 
   async buildBidTransactions({
-    walletAddress,
+    bidder,
     auctionAddress,
     amount,
     maxFdvUsd,
     currencyPriceUsd,
   }) {
     const body = {
-      walletAddress,
+      bidder,
       auctionAddress,
       amount,
       maxFdvUsd,

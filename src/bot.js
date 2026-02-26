@@ -280,7 +280,7 @@ async function main() {
     }
 
     const build = await flow.buildBidTransactions({
-      walletAddress,
+      bidder: walletAddress,
       auctionAddress: config.flowAuctionAddress,
       amount: amountUsdc,
       maxFdvUsd,
